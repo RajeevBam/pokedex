@@ -45,7 +45,7 @@ const SelectPokemon = ({ id }) => {
 //                 <Button title="Go back" onPress={() => navigation.goBack()} />
 //               </View>);
 // };
-const EvolutionComp = ({ navigation, route }) => { }
+const EvolutionComp = ({ navigation, route }) => {return (<View><Text>Evolution Here</Text></View>)}
 const SearchComp = ({ navigation, route }) => { }
 
 

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Image,
-  Button,
   ScrollView,
   Text,
-  ImageBackground,
   StyleSheet,
   TouchableOpacity,
+  Animated,
+  PanResponder,
 } from "react-native";
 import Icon from "@expo/vector-icons/FontAwesome";
 import { Card } from "react-native-paper";
@@ -18,6 +18,7 @@ const AboutComp = ({ navigation, route }) => {
   const [pokemonName, setPokemonName] = useState("");
   const [types, setTypes] = useState([]);
   const [dimension, setDimension] = useState({});
+  const [about, setAbout] = useState("");
   useEffect(
     () =>
       fetch("https://pokeapi.co/api/v2/pokemon/" + route.params.id)
@@ -27,13 +28,32 @@ const AboutComp = ({ navigation, route }) => {
           const dataTypes = data["types"].map((type) => type.type.name);
           setTypes(dataTypes);
           setDimension({ height: data["height"], weight: data["weight"] });
-          return data["sprites"]["front_default"];
+          setImageURL(
+            data["sprites"]["other"]["official-artwork"]["front_default"]
+          );
         })
-        .then((url) => setImageURL(url)),
+        .then(() =>
+          fetch("https://pokeapi.co/api/v2/pokemon-species/" + route.params.id)
+        )
+        .then((res) => res.json())
+        .then((aboutData) => {
+          setAbout(aboutData["flavor_text_entries"][6]["flavor_text"]);
+        }),
     [route.params.id]
   );
-  const height= (dimension.height)/10;
-  const weight= (dimension.weight)/10;
+  const pan = useRef(new Animated.ValueXY()).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y}]),
+      onPanResponderRelease: () => {
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver:true}).start();
+      },
+    })
+  ).current;
+  const height = dimension.height / 10;
+  const weight = dimension.weight / 10;
+  const description = about.replace(/\n/g, "");
   return (
     <View>
       <LinearGradient
@@ -84,27 +104,60 @@ const AboutComp = ({ navigation, route }) => {
                 </View>
               ))}
             </View>
-            <Image source={{ uri: imageURL }} style={styles.imageStyle} />
+            <Animated.View
+              style={{
+                transform: [{ translateX: pan.x }, { translateY: pan.y }], useNativeDriver:true
+              }}
+              {...panResponder.panHandlers}
+            >
+              <Image source={{ uri: imageURL }} style={styles.imageStyle} />
+            </Animated.View>
+
             <Card style={styles.card}>
-              <View style={{ alignItems: "flex-start" ,padding:10}}>
-                <Text style={{ fontWeight: "bold", color: "#fff" }}>About: </Text>
-                <Text style={styles.textStyle}>Description Goes there</Text>
+              <View style={{ alignItems: "flex-start", padding: 10 }}>
+                <Text
+                  style={{ fontWeight: "bold", color: "#fff", fontSize: 20 }}
+                >
+                  About:{" "}
+                </Text>
+                <Text style={styles.textStyle}>{description}</Text>
               </View>
               <View
                 style={{ flexDirection: "row", justifyContent: "space-evenly" }}
               >
-                <View style={{ alignItems: "center"}}>
-                  <Text style={{ fontWeight: "bold" , color: "#fff"}}>Height</Text>
+                <View style={{ alignItems: "center" }}>
+                  <Text
+                    style={{
+                      fontWeight: "bold",
+                      color: "#fff",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Height:
+                  </Text>
                   <Text style={styles.textStyle}>{height} m</Text>
                 </View>
-                <View style={{ alignItems: "center" } }>
-                  <Text style={{ fontWeight: "bold" , color: "#fff"}}>Weight</Text>
+                <View style={{ alignItems: "center" }}>
+                  <Text
+                    style={{
+                      fontWeight: "bold",
+                      color: "#fff",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Weight:
+                  </Text>
                   <Text style={styles.textStyle}>{weight} kg</Text>
                 </View>
               </View>
             </Card>
           </View>
-          <TouchableOpacity style={styles.evolutionButton}>
+          <TouchableOpacity
+            style={styles.evolutionButton}
+            onPress={() =>
+              navigation.navigate("Evolution", { id: route.params.id })
+            }
+          >
             <Text>Evolution</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -119,15 +172,16 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   card: {
-    width: "90%", 
-    alignSelf: "center", 
+    width: "90%",
+    alignSelf: "center",
     padding: 10,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     opacity: 0.5,
   },
 
   textStyle: {
     color: "#fff",
+    fontSize: 15,
   },
   nameStyle: {
     fontSize: 18,
